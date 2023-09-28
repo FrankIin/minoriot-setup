@@ -19,6 +19,27 @@ password = "vosko"
 # Local Database Settings
 db_file = "sensor_data.db"
 
+def create_sensor_data_table():
+    # Connect to the SQLite database (or create it if it doesn't exist)
+    conn = sqlite3.connect('sensor_data.db')
+    cursor = conn.cursor()
+
+    # Create the sensor_data table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sensor_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT,
+            temperature REAL,
+            humidity REAL,
+            pressure REAL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Commit the changes and close the connection
+    conn.commit()
+    conn.close()
+
 # Define the callback function for when a message is received from MQTT
 def on_message(client, userdata, message):
     payload = message.payload.decode("utf-8")
@@ -37,22 +58,14 @@ def on_message(client, userdata, message):
                 log.error("Shutting down", exit_after=False)
                 azure_iot_client.shutdown()
 
-            # Save data to local database (optional)
-            try:
-                conn = sqlite3.connect(db_file)
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO sensor_data (deviceId, temperature, humidity, pressure) VALUES (?, ?, ?, ?)",
-                            (deviceId, temperature, humidity, pressure))
-                conn.commit()
-                conn.close()
-                log.success("Saved to Local Database:", payload)
-            except Exception as e:
-                log.success("Error saving to Local Database:", str(e))
         else:
-            log.success("Incomplete data received:", str(e))
+            log.success("Incomplete data received:", payload)
 
     except json.JSONDecodeError:
         log.success("Invalid JSON received:", payload)
+
+# Call the function to create the table
+create_sensor_data_table()
 
 # Initialize the MQTT client
 mqtt_client = mqtt.Client()
@@ -87,6 +100,17 @@ def send_to_azure_iot_hub(temperature, humidity, pressure, deviceId):
         azure_iot_client.send_message(message)
     except (ConnectionFailedError, ConnectionDroppedError, OperationTimeout, OperationCancelled, NoConnectionError):
         log.warning("Message failed to send, skipping")
+        # Save data to local database (optional)
+        try:
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO sensor_data (deviceId, temperature, humidity, pressure) VALUES (?, ?, ?, ?)",
+                        (deviceId, temperature, humidity, pressure))
+            conn.commit()
+            conn.close()
+            log.success("Saved to Local Database:", payload)
+        except Exception as e:
+            log.success("Error saving to Local Database:", str(e))
     else:
         log.success("Message successfully sent!", message)
 
