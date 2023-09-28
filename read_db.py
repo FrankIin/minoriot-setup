@@ -7,7 +7,7 @@ conn = sqlite3.connect('sensor_data.db')
 cursor = conn.cursor()
 
 # 3. Execute an SQL query to fetch data (replace 'your_table' and 'your_column' with your actual table and column names)
-cursor.execute('SELECT * FROM your_table')
+cursor.execute('SELECT * FROM sensor_data')
 
 # 4. Fetch and print the data
 for row in cursor.fetchall():
