@@ -1,7 +1,7 @@
 import sqlite3
 
 # 1. Connect to the SQLite database (or create a new one if it doesn't exist)
-conn = sqlite3.connect('mydatabase.db')
+conn = sqlite3.connect('sensor_data.db')
 
 # 2. Create a cursor object to interact with the database
 cursor = conn.cursor()
