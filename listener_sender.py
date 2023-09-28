@@ -4,6 +4,7 @@ import json
 from azure.iot.device import IoTHubDeviceClient, Message
 from azure.iot.device.exceptions import ConnectionFailedError, ConnectionDroppedError, OperationTimeout, OperationCancelled, NoConnectionError
 from log import console, log
+import sqlite3
 
 # Azure IoT Hub connection details
 CONNECTION_STRING = "HostName=FreekHub.azure-devices.net;DeviceId=rasp;SharedAccessKey=fHIIUwn+6gQOkAcLYS59gLWBd43BZ5ge/GPfbsswQH4="
@@ -14,6 +15,30 @@ MQTT_BROKER_PORT = 1883 # Default MQTT port
 MQTT_TOPIC = "sensor_data"
 username = "vosko"
 password = "vosko"
+
+# Local Database Settings
+db_file = "sensor_data.db"
+
+def create_sensor_data_table():
+    # Connect to the SQLite database (or create it if it doesn't exist)
+    conn = sqlite3.connect('sensor_data.db')
+    cursor = conn.cursor()
+
+    # Create the sensor_data table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sensor_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deviceId TEXT,
+            temperature REAL,
+            humidity REAL,
+            pressure REAL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Commit the changes and close the connection
+    conn.commit()
+    conn.close()
 
 # Define the callback function for when a message is received from MQTT
 def on_message(client, userdata, message):
@@ -32,11 +57,26 @@ def on_message(client, userdata, message):
                 # Shut down the device client when Ctrl+C is pressed
                 log.error("Shutting down", exit_after=False)
                 azure_iot_client.shutdown()
+
+            # Save data to local database (optional)
+            try:
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO sensor_data (deviceId, temperature, humidity, pressure) VALUES (?, ?, ?, ?)",
+                            (deviceId, temperature, humidity, pressure))
+                conn.commit()
+                conn.close()
+                print("Saved to Local Database:", payload)
+            except Exception as e:
+                print("Error saving to Local Database:", str(e))
         else:
             print("Incomplete data received:", data)
 
     except json.JSONDecodeError:
         print("Invalid JSON received:", payload)
+
+# Call the function to create the table
+create_sensor_data_table()
 
 # Initialize the MQTT client
 mqtt_client = mqtt.Client()
