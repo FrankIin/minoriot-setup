@@ -1,42 +1,53 @@
-#!/bin/python3
 import paho.mqtt.client as mqtt
 import json
+from azure.iot.device import IoTHubDeviceClient, Message
+
+# Azure IoT Hub connection details
+CONNECTION_STRING = "HostName=FreekHub.azure-devices.net;DeviceId=rasp;SharedAccessKey=fHIIUwn+6gQOkAcLYS59gLWBd43BZ5ge/GPfbsswQH4="
 
 # MQTT Broker settings
-broker_address = "mqtt_broker_address"
-port = 1883
-username = "your_username"
-password = "your_password"
+MQTT_BROKER_HOST = "192.168.137.3"
+MQTT_BROKER_PORT = 1883  # Default MQTT port
+MQTT_TOPIC = "bme"
 
-# Callback function for when a message is received
+# Define the callback function for when a message is received from MQTT
 def on_message(client, userdata, message):
-    # Decode the message payload
-    data = json.loads(message.payload.decode('utf-8'))
+    payload = message.payload.decode("utf-8")
+    try:
+        data = json.loads(payload)
+        temperature = data.get("temperature")
+        humidity = data.get("humidity")
+        pressure = data.get("pressure")
 
-    # Extract data for temperature, humidity, and pressure
-    temperature = data.get('temperature')
-    humidity = data.get('humidity')
-    pressure = data.get('pressure')
+        if temperature is not None and humidity is not None and pressure is not None:
+            send_to_azure_iot_hub(temperature, humidity, pressure)
+        else:
+            print("Incomplete data received:", data)
 
-    # Now, you can send this data to Azure IoT Hub
-    # See step 2 for Azure IoT Hub integration
+    except json.JSONDecodeError:
+        print("Invalid JSON received:", payload)
 
-# Create an MQTT client instance
-client = mqtt.Client()
-
-# Set username and password
-client.username_pw_set(username, password)
-
-# Set the callback function
-client.on_message = on_message
+# Initialize the MQTT client
+mqtt_client = mqtt.Client()
+mqtt_client.on_message = on_message
 
 # Connect to the MQTT broker
-client.connect(broker_address, port)
+mqtt_client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
+mqtt_client.subscribe(MQTT_TOPIC)
 
-# Subscribe to the topics
-client.subscribe("topic/temperature")
-client.subscribe("topic/humidity")
-client.subscribe("topic/pressure")
+# Azure IoT Hub client
+azure_iot_client = IoTHubDeviceClient.create_from_connection_string(CONNECTION_STRING)
+
+# Function to send data to Azure IoT Hub
+def send_to_azure_iot_hub(temperature, humidity, pressure):
+    payload = {
+        "temperature": temperature,
+        "humidity": humidity,
+        "pressure": pressure,
+    }
+    message = Message(json.dumps(payload))
+    azure_iot_client.send_message(message)
+    print("Data sent to Azure IoT Hub:", payload)
 
 # Start the MQTT client loop
-client.loop_forever()
+mqtt_client.loop_forever()
