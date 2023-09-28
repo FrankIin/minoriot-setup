@@ -66,14 +66,14 @@ def on_message(client, userdata, message):
                             (deviceId, temperature, humidity, pressure))
                 conn.commit()
                 conn.close()
-                print("Saved to Local Database:", payload)
+                log.success("Saved to Local Database:", payload)
             except Exception as e:
-                print("Error saving to Local Database:", str(e))
+                log.success("Error saving to Local Database:", str(e))
         else:
-            print("Incomplete data received:", data)
+            log.success("Incomplete data received:", str(e))
 
     except json.JSONDecodeError:
-        print("Invalid JSON received:", payload)
+        log.success("Invalid JSON received:", payload)
 
 # Call the function to create the table
 create_sensor_data_table()
