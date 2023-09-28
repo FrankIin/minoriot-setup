@@ -7,8 +7,10 @@ CONNECTION_STRING = "HostName=FreekHub.azure-devices.net;DeviceId=rasp;SharedAcc
 
 # MQTT Broker settings
 MQTT_BROKER_HOST = "192.168.137.3"
-MQTT_BROKER_PORT = 1883  # Default MQTT port
+MQTT_BROKER_PORT = 1883 # Default MQTT port
 MQTT_TOPIC = "bme"
+username = "vosko"
+password = "vosko"
 
 # Define the callback function for when a message is received from MQTT
 def on_message(client, userdata, message):
@@ -29,6 +31,10 @@ def on_message(client, userdata, message):
 
 # Initialize the MQTT client
 mqtt_client = mqtt.Client()
+
+# Set username and password
+mqtt_client.username_pw_set(username, password)
+
 mqtt_client.on_message = on_message
 
 # Connect to the MQTT broker
