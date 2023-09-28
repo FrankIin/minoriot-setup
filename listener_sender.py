@@ -22,7 +22,7 @@ def on_message(client, userdata, message):
         humidity = data.get("humidity")
         pressure = data.get("pressure")
 
-        if temperature is not None and humidity is not None and pressure is not None:
+        if temperature is not None and humidity is not None and pressure is not None and deviceId is not None:
             send_to_azure_iot_hub(temperature, humidity, pressure, deviceId)
         else:
             print("Incomplete data received:", data)
