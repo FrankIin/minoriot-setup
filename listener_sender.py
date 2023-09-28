@@ -8,7 +8,7 @@ CONNECTION_STRING = "HostName=FreekHub.azure-devices.net;DeviceId=rasp;SharedAcc
 # MQTT Broker settings
 MQTT_BROKER_HOST = "192.168.137.3"
 MQTT_BROKER_PORT = 1883 # Default MQTT port
-MQTT_TOPIC = "bme"
+MQTT_TOPIC = "sensor_data"
 username = "vosko"
 password = "vosko"
 
@@ -17,12 +17,13 @@ def on_message(client, userdata, message):
     payload = message.payload.decode("utf-8")
     try:
         data = json.loads(payload)
+        deviceId = data.get("deviceId")
         temperature = data.get("temperature")
         humidity = data.get("humidity")
         pressure = data.get("pressure")
 
         if temperature is not None and humidity is not None and pressure is not None:
-            send_to_azure_iot_hub(temperature, humidity, pressure)
+            send_to_azure_iot_hub(temperature, humidity, pressure, deviceId)
         else:
             print("Incomplete data received:", data)
 
@@ -45,9 +46,9 @@ mqtt_client.subscribe(MQTT_TOPIC)
 azure_iot_client = IoTHubDeviceClient.create_from_connection_string(CONNECTION_STRING)
 
 # Function to send data to Azure IoT Hub
-def send_to_azure_iot_hub(temperature, humidity, pressure):
+def send_to_azure_iot_hub(temperature, humidity, pressure, deviceId):
     payload = {
-        "deviceId": "Raspberry Pi - Python",
+        "deviceId": deviceId,
         "temperature": temperature,
         "humidity": humidity,
         "pressure": pressure,
