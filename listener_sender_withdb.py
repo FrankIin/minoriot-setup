@@ -1,71 +1,96 @@
+import os
 import json
 import sqlite3
-import paho.mqtt.client as mqtt
+import time
 from azure.iot.device import IoTHubDeviceClient, Message
+import paho.mqtt.client as mqtt
 
-# MQTT Broker Configuration
-mqtt_broker_host = "192.168.137.3"  # or the IP address of your Raspberry Pi
-mqtt_broker_port = 1883
-mqtt_username = "vosko"
-mqtt_password = "vosko"
+# Define MQTT broker settings
+MQTT_BROKER_HOST = "192.168.137.3"
+MQTT_BROKER_PORT = 1883
+MQTT_USERNAME = "vosko"
+MQTT_PASSWORD = "vosko"
+MQTT_TOPIC = "sensor_data"
 
-# Azure IoT Hub Configuration
-azure_iot_hub_connection_string = "HostName=FreekHub.azure-devices.net;DeviceId=rasp;SharedAccessKey=fHIIUwn+6gQOkAcLYS59gLWBd43BZ5ge/GPfbsswQH4="
+# Define Azure IoT Hub settings
+IOT_HUB_CONNECTION_STRING = "HostName=FreekHub.azure-devices.net;DeviceId=rasp;SharedAccessKey=fHIIUwn+6gQOkAcLYS59gLWBd43BZ5ge/GPfbsswQH4="
 
-# SQLite Database Configuration
-db_file = "sensor_data.db"
+# Define local database settings
+DB_PATH = "sensor_data.db"
 
-# MQTT Callback when a message is received
-def on_message(client, userdata, message):
-    try:
-        payload = json.loads(message.payload.decode())
-        save_data_to_local_db(payload)
-        send_data_to_azure_iot_hub(payload)
-    except Exception as e:
-        print(f"Error processing MQTT message: {str(e)}")
-
-# Function to save data to the local SQLite database
-def save_data_to_local_db(data):
-    conn = sqlite3.connect(db_file)
+# Create a local SQLite database if it doesn't exist
+def create_database():
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO sensor_data (deviceId, temperature, humidity, pressure) VALUES (?, ?, ?, ?)",
-                   (data['deviceId'], data['temperature'], data['humidity'], data['pressure']))
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sensor_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deviceId TEXT,
+            temperature REAL,
+            humidity REAL,
+            pressure REAL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
 
-# Function to send data to Azure IoT Hub
-def send_data_to_azure_iot_hub(data):
-    try:
-        device_client = IoTHubDeviceClient.create_from_connection_string(azure_iot_hub_connection_string)
-        message = Message(json.dumps(data))
-        device_client.send_message(message)
-        print("Sent data to Azure IoT Hub:", json.dumps(data))
-    except Exception as e:
-        print(f"Error sending data to Azure IoT Hub: {str(e)}")
+# Connect to Azure IoT Hub
+def connect_to_iot_hub():
+    return IoTHubDeviceClient.create_from_connection_string(IOT_HUB_CONNECTION_STRING)
 
-# Initialize and connect to MQTT Broker
+# MQTT message handler
+def on_message(client, userdata, message):
+    try:
+        payload = json.loads(message.payload.decode('utf-8'))
+        device_id = payload['deviceId']
+        temperature = payload['temperature']
+        humidity = payload['humidity']
+        pressure = payload['pressure']
+        
+        # Store data in the local database
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO sensor_data (deviceId, temperature, humidity, pressure)
+            VALUES (?, ?, ?, ?)
+        ''', (device_id, temperature, humidity, pressure))
+        conn.commit()
+        conn.close()
+        
+        print(f"Received data from {device_id}: Temp={temperature}, Humidity={humidity}, Pressure={pressure}")
+        
+        # Send data to Azure IoT Hub if the connection is available
+        if azure_iot_client.connected:
+            message = Message(json.dumps(payload))
+            azure_iot_client.send_message(message)
+            print("Sent data to Azure IoT Hub")
+    except Exception as e:
+        print(f"Error processing MQTT message: {str(e)}")
+
+# Initialize the local database
+create_database()
+
+# Connect to Azure IoT Hub
+azure_iot_client = connect_to_iot_hub()
+
+# Initialize MQTT client
 mqtt_client = mqtt.Client()
-mqtt_client.username_pw_set(username=mqtt_username, password=mqtt_password)
+mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
 mqtt_client.on_message = on_message
-mqtt_client.connect(mqtt_broker_host, mqtt_broker_port)
-mqtt_client.subscribe("sensor_data")
+
+# Connect to MQTT broker
+mqtt_client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
+mqtt_client.subscribe(MQTT_TOPIC, qos=0)
+
+# Start the MQTT loop
 mqtt_client.loop_start()
 
-# Main loop
-while True:
-    # Check for unsent data in the local database and send it to Azure IoT Hub
-    conn = sqlite3.connect(db_file)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM sensor_data")
-    rows = cursor.fetchall()
-    for row in rows:
-        data = {
-            "deviceId": row[0],
-            "temperature": row[1],
-            "humidity": row[2],
-            "pressure": row[3]
-        }
-        send_data_to_azure_iot_hub(data)
-        cursor.execute("DELETE FROM sensor_data WHERE rowid=?", (row[4],))
-        conn.commit()
-    conn.close()
+try:
+    while True:
+        # You can add other logic here if needed
+        time.sleep(5)  # Sleep for 5 seconds
+except KeyboardInterrupt:
+    print("Disconnecting...")
+    mqtt_client.disconnect()
+    azure_iot_client.disconnect()
