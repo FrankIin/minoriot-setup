@@ -3,7 +3,8 @@ import paho.mqtt.client as mqtt
 # MQTT Broker settings
 broker_address = "192.168.137.3"  # Replace with your MQTT broker address
 port = 1883  # Default MQTT port
-topic = 'bme'  # The MQTT topic you want to subscribe to
+
+topic = 'sensor_data'  # The MQTT topic you want to subscribe to
 username = "vosko"
 password = "vosko"
 
