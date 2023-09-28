@@ -47,6 +47,7 @@ azure_iot_client = IoTHubDeviceClient.create_from_connection_string(CONNECTION_S
 # Function to send data to Azure IoT Hub
 def send_to_azure_iot_hub(temperature, humidity, pressure):
     payload = {
+        "deviceId": "Raspberry Pi - Python",
         "temperature": temperature,
         "humidity": humidity,
         "pressure": pressure,
