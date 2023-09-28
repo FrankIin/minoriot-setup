@@ -19,27 +19,6 @@ password = "vosko"
 # Local Database Settings
 db_file = "sensor_data.db"
 
-def create_sensor_data_table():
-    # Connect to the SQLite database (or create it if it doesn't exist)
-    conn = sqlite3.connect('sensor_data.db')
-    cursor = conn.cursor()
-
-    # Create the sensor_data table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS sensor_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            deviceId TEXT,
-            temperature REAL,
-            humidity REAL,
-            pressure REAL,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-
-    # Commit the changes and close the connection
-    conn.commit()
-    conn.close()
-
 # Define the callback function for when a message is received from MQTT
 def on_message(client, userdata, message):
     payload = message.payload.decode("utf-8")
@@ -74,9 +53,6 @@ def on_message(client, userdata, message):
 
     except json.JSONDecodeError:
         log.success("Invalid JSON received:", payload)
-
-# Call the function to create the table
-create_sensor_data_table()
 
 # Initialize the MQTT client
 mqtt_client = mqtt.Client()
