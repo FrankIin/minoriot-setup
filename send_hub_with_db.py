@@ -10,7 +10,7 @@ import sqlite3
 CONNECTION_STRING = "HostName=FreekHub.azure-devices.net;DeviceId=rasp;SharedAccessKey=fHIIUwn+6gQOkAcLYS59gLWBd43BZ5ge/GPfbsswQH4="
 
 # MQTT Broker settings
-MQTT_BROKER_HOST = "192.168.137.3"
+MQTT_BROKER_HOST = "192.168.137.152"
 MQTT_BROKER_PORT = 1883 # Default MQTT port
 MQTT_TOPIC = "sensor_data"
 username = "vosko"
@@ -28,11 +28,12 @@ def create_sensor_data_table():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sensor_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            device_id TEXT,
+            deviceId TEXT,
             temperature REAL,
             humidity REAL,
             pressure REAL,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            check INTEGER,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP            
         )
     ''')
 
@@ -49,10 +50,24 @@ def on_message(client, userdata, message):
         temperature = data.get("temperature")
         humidity = data.get("humidity")
         pressure = data.get("pressure")
+        check = "0"
 
         if temperature is not None and humidity is not None and pressure is not None and deviceId is not None:
             try:
-                send_to_azure_iot_hub(temperature, humidity, pressure, deviceId)
+                # Save data to Zzure IoT hub
+                # send_to_azure_iot_hub(temperature, humidity, pressure, deviceId)
+
+                # Save data to local database (optional)
+                try:
+                    conn = sqlite3.connect(db_file)
+                    cursor = conn.cursor()
+                    cursor.execute("INSERT INTO sensor_data (deviceId, temperature, humidity, pressure, check) VALUES (?, ?, ?, ?, ?)",
+                                (deviceId, temperature, humidity, pressure, check))
+                    conn.commit()
+                    conn.close()
+                    log.success("Saved to Local Database:", payload)
+                except Exception as e:
+                    log.success("Error saving to Local Database:", str(e))
             except KeyboardInterrupt:
                 # Shut down the device client when Ctrl+C is pressed
                 log.error("Shutting down", exit_after=False)
@@ -100,17 +115,7 @@ def send_to_azure_iot_hub(temperature, humidity, pressure, deviceId):
         azure_iot_client.send_message(message)
     except (ConnectionFailedError, ConnectionDroppedError, OperationTimeout, OperationCancelled, NoConnectionError):
         log.warning("Message failed to send, skipping")
-        # Save data to local database (optional)
-        try:
-            conn = sqlite3.connect(db_file)
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO sensor_data (deviceId, temperature, humidity, pressure) VALUES (?, ?, ?, ?)",
-                        (deviceId, temperature, humidity, pressure))
-            conn.commit()
-            conn.close()
-            log.success("Saved to Local Database:", payload)
-        except Exception as e:
-            log.success("Error saving to Local Database:", str(e))
+
     else:
         log.success("Message successfully sent!", message)
 
