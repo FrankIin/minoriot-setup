@@ -12,3 +12,7 @@ class BME280SensorSimulator:
     @property
     def humidity(self):
         return random.uniform(60, 80)
+    
+    @property
+    def pressure(self):
+        return random.uniform(950,1050)

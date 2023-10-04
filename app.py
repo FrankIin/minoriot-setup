@@ -83,6 +83,7 @@ def main():
                 "deviceId" : "Raspberry Pi - Python",
                 "temperature": data.temperature,
                 "humidity": data.humidity,
+                "pressure": data.pressure,
             }
 
             # Send BME280 sensor data to Azure IoTHub
