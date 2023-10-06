@@ -32,8 +32,8 @@ def create_sensor_data_table():
             temperature REAL,
             humidity REAL,
             pressure REAL,
-            check INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP            
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            checkAzure INTEGER            
         )
     ''')
 
@@ -61,7 +61,7 @@ def on_message(client, userdata, message):
                 try:
                     conn = sqlite3.connect(db_file)
                     cursor = conn.cursor()
-                    cursor.execute("INSERT INTO sensor_data (deviceId, temperature, humidity, pressure, check) VALUES (?, ?, ?, ?, ?)",
+                    cursor.execute("INSERT INTO sensor_data (deviceId, temperature, humidity, pressure, checkAzure) VALUES (?, ?, ?, ?, ?)",
                                 (deviceId, temperature, humidity, pressure, check))
                     conn.commit()
                     conn.close()
@@ -71,7 +71,7 @@ def on_message(client, userdata, message):
             except KeyboardInterrupt:
                 # Shut down the device client when Ctrl+C is pressed
                 log.error("Shutting down", exit_after=False)
-                azure_iot_client.shutdown()
+                # azure_iot_client.shutdown()
 
         else:
             log.success("Incomplete data received:", payload)
@@ -94,30 +94,30 @@ mqtt_client.on_message = on_message
 mqtt_client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
 mqtt_client.subscribe(MQTT_TOPIC)
 
-with console.status("Connecting to IoT Hub with Connection String", spinner="arc", spinner_style="blue"):
-    # Create instance of the device client using the connection string
-    # Azure IoT Hub client
-    azure_iot_client = IoTHubDeviceClient.create_from_connection_string(CONNECTION_STRING)
-    # Connect the device client.
-    azure_iot_client.connect()
-log.success("Connected to IoT Hub")
+# with console.status("Connecting to IoT Hub with Connection String", spinner="arc", spinner_style="blue"):
+#     # Create instance of the device client using the connection string
+#     # Azure IoT Hub client
+#     azure_iot_client = IoTHubDeviceClient.create_from_connection_string(CONNECTION_STRING)
+#     # Connect the device client.
+#     azure_iot_client.connect()
+# log.success("Connected to IoT Hub")
 
 # Function to send data to Azure IoT Hub
-def send_to_azure_iot_hub(temperature, humidity, pressure, deviceId):
-    payload = {
-        "deviceId": deviceId,
-        "temperature": temperature,
-        "humidity": humidity,
-        "pressure": pressure,
-    }
-    message = Message(json.dumps(payload))
-    try:
-        azure_iot_client.send_message(message)
-    except (ConnectionFailedError, ConnectionDroppedError, OperationTimeout, OperationCancelled, NoConnectionError):
-        log.warning("Message failed to send, skipping")
+# def send_to_azure_iot_hub(temperature, humidity, pressure, deviceId):
+#     payload = {
+#         "deviceId": deviceId,
+#         "temperature": temperature,
+#         "humidity": humidity,
+#         "pressure": pressure,
+#     }
+#     message = Message(json.dumps(payload))
+#     try:
+#         azure_iot_client.send_message(message)
+#     except (ConnectionFailedError, ConnectionDroppedError, OperationTimeout, OperationCancelled, NoConnectionError):
+#         log.warning("Message failed to send, skipping")
 
-    else:
-        log.success("Message successfully sent!", message)
+#     else:
+#         log.success("Message successfully sent!", message)
 
 # Start the MQTT client loop
 mqtt_client.loop_forever()
