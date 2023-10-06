@@ -1,76 +1,48 @@
-<!-- Code voor home pagina
-Home pagina bevat: Realtime waardes weergegeven voor elke groep
-Grafiek met realtime waardes -->
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- De namen van de JS en CSS worden naar Arduino verstuurd en die stuurt vervolgens het bestand uit SPIFFS -->
-  <!-- CSS voor opmaak, Javascript voor grafiek en dergelijke -->
-  <!-- Voor meer informatie zoek in google: Highcharts en Jquery -->
-  <link rel="stylesheet" href='../static/style.css'/>
-  <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
-  <script src="https://code.highcharts.com/highcharts.js"></script>
-  <script src="https://code.highcharts.com/modules/series-label.js"></script>
-  <script src="https://code.highcharts.com/modules/exporting.js"></script>
-  <script src="https://code.highcharts.com/modules/export-data.js"></script>
-  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data Line Graph</title>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
 </head>
-
 <body>
-  <!-- Titel -->
-  <h1>Slimme meterkast | Home</h1>
-  <div id="top">
-    <div id="graph1"></div>
-  </div>
+    <div id="container" style="width: 80%; height: 400px;"></div>
+
+    <script>
+        // Fetch data from the server
+        fetch('/data')
+            .then(response => response.json())
+            .then(data => {
+                const datetime = data.map(item => item.datetime);
+                const temperature = data.map(item => item.temperature);
+
+                // Create the Highcharts graph
+                Highcharts.chart('container', {
+                    chart: {
+                        type: 'line',
+                        style: {
+                            fontFamily: 'Poppins'
+                         }
+                    },
+                    title: {
+                        text: 'Sensor Data'
+                    },
+                    xAxis: {
+                        type: 'datetime'
+                    },
+                    yAxis: {
+                        title: {
+                            text: 'Temperature'
+                        }
+                    },
+                    series: [{
+                        name: 'Temperature',
+                        data: temperature
+                    }]
+                });
+            });
+    </script>
 </body>
-<script>
-$(function () {
-    $.getJSON('data.php', function (data) { 
-
-        $('#graphe').highcharts({
-            chart: {
-                 type: 'pie'
-            },
-            title: {
-                text: 'Cost'
-            },
-            credits: {
-                enabled: false
-            },
-            legend: {
-                enabled: false
-            },
-
-            yAxis: [{
-            title: {
-                enabled: false
-            },
-            tickAmount: 11,
-            labels: {
-                format: '{value}€',
-            }
-
-            }],
-
-            plotOptions: {
-                series: {
-            borderRadius: 8,
-            dataLabels: {
-                enabled: true,
-                format: '{point.y:,.2f} €',
-            }
-        }
-
-                            },
-            series: [{
-                name: 'Cost',
-                    data: [{name: data[0].data, y: data[1].data}]
-            }]
-        });
-    });
-});
-</script>
-
 </html>
